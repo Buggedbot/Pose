@@ -1,0 +1,285 @@
+* {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  margin: 0;
+  height: 100%;
+  background: #16171a;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: #e8e8ea;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.app-header {
+  padding: 10px 18px;
+  border-bottom: 1px solid #2a2c30;
+  background: #1a1b1e;
+}
+
+.app-header h1 {
+  font-size: 16px;
+  margin: 0 0 2px;
+  font-weight: 600;
+}
+
+.app-header p {
+  margin: 0;
+  font-size: 12px;
+  color: #9a9ca1;
+}
+
+.app-main {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+.viewport {
+  flex: 1;
+  position: relative;
+  min-width: 0;
+}
+
+.viewport canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.sidebar {
+  width: 320px;
+  flex-shrink: 0;
+  border-left: 1px solid #2a2c30;
+  background: #1a1b1e;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.tabs {
+  display: flex;
+  border-bottom: 1px solid #2a2c30;
+}
+
+.tab {
+  flex: 1;
+  padding: 10px;
+  background: none;
+  border: none;
+  color: #9a9ca1;
+  font-size: 13px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+}
+
+.tab-active {
+  color: #ff8a3d;
+  border-bottom-color: #ff8a3d;
+}
+
+.sidebar-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 14px;
+}
+
+.panel-section {
+  margin-bottom: 18px;
+}
+
+.panel-section h3 {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #9a9ca1;
+  margin: 0 0 10px;
+}
+
+.panel-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.panel-section-header h3 {
+  margin: 0;
+  font-size: 14px;
+  color: #e8e8ea;
+  text-transform: none;
+}
+
+.header-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.link-button {
+  background: none;
+  border: none;
+  color: #ff8a3d;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+
+.hint {
+  font-size: 12px;
+  color: #7d7f85;
+  line-height: 1.5;
+}
+
+.slider-row {
+  margin-bottom: 12px;
+}
+
+.slider-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #c7c8cc;
+  margin-bottom: 4px;
+}
+
+.slider-value {
+  color: #ff8a3d;
+  font-variant-numeric: tabular-nums;
+}
+
+.slider-row input[type='range'] {
+  width: 100%;
+  accent-color: #ff8a3d;
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  margin-bottom: 10px;
+  color: #c7c8cc;
+}
+
+.joint-group {
+  margin-bottom: 10px;
+}
+
+.joint-group-label {
+  font-size: 11px;
+  color: #7d7f85;
+  margin-bottom: 6px;
+}
+
+.joint-group-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip {
+  background: #25272b;
+  border: 1px solid #34363b;
+  color: #c7c8cc;
+  border-radius: 999px;
+  padding: 5px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.chip:hover {
+  border-color: #ff8a3d;
+}
+
+.chip-selected {
+  background: #ff8a3d;
+  border-color: #ff8a3d;
+  color: #1a1b1e;
+  font-weight: 600;
+}
+
+.preset-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.preset-button {
+  background: #25272b;
+  border: 1px solid #34363b;
+  color: #e8e8ea;
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  flex: 1;
+}
+
+.preset-button:hover {
+  border-color: #ff8a3d;
+}
+
+.reset-all-button {
+  width: 100%;
+  background: none;
+  border: 1px solid #34363b;
+  color: #c7c8cc;
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  margin-bottom: 18px;
+}
+
+.save-row {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.save-row input[type='text'] {
+  flex: 1;
+  background: #25272b;
+  border: 1px solid #34363b;
+  color: #e8e8ea;
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 13px;
+}
+
+.save-row button {
+  background: #ff8a3d;
+  border: none;
+  color: #1a1b1e;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.save-row button:disabled {
+  background: #34363b;
+  color: #7d7f85;
+  cursor: not-allowed;
+}
+
+.saved-pose-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.saved-pose-row .preset-button {
+  flex: 1;
+}
