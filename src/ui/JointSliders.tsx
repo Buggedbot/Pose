@@ -1,9 +1,12 @@
 import { useStore } from '../state/useStore'
-import { boneMap, AXES, type Axis } from '../scene/jointDefs'
+import { AXES, type Axis } from '../scene/jointDefs'
+import { boneLabel, boneLimits } from '../scene/boneInfo'
 
 const AXIS_LABEL: Record<Axis, string> = { x: 'Bend (X)', y: 'Twist (Y)', z: 'Swing (Z)' }
 
 export function JointSliders() {
+  const mode = useStore((s) => s.mode)
+  const customBoneTree = useStore((s) => s.customBoneTree)
   const selectedBone = useStore((s) => s.selectedBone)
   const rotation = useStore((s) => (selectedBone ? s.rotations[selectedBone] : undefined))
   const setAxis = useStore((s) => s.setAxis)
@@ -19,12 +22,13 @@ export function JointSliders() {
     )
   }
 
-  const bone = boneMap[selectedBone]
+  const label = boneLabel(mode, selectedBone, customBoneTree)
+  const limits = boneLimits(mode, selectedBone)
 
   return (
     <div className="panel-section">
       <div className="panel-section-header">
-        <h3>{bone.label}</h3>
+        <h3>{label}</h3>
         <div className="header-actions">
           <button className="link-button" onClick={() => resetBone(selectedBone)}>
             Reset
@@ -35,7 +39,7 @@ export function JointSliders() {
         </div>
       </div>
       {AXES.map((axis) => {
-        const limit = bone.limits[axis]
+        const limit = limits[axis]
         if (!limit) return null
         const value = rotation[axis]
         return (

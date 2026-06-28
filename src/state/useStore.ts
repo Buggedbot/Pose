@@ -1,7 +1,9 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { boneDefs, boneMap, clampToLimit, type Axis } from '../scene/jointDefs'
+import { boneDefs, type Axis } from '../scene/jointDefs'
 import { presets, type PoseRotations } from '../poses/presets'
+import { clampToBoneLimit, type Mode } from '../scene/boneInfo'
+import type { DynamicBoneDef } from '../scene/customModel'
 
 function defaultRotations(): PoseRotations {
   const rot: PoseRotations = {}
@@ -25,11 +27,18 @@ export interface LightingState {
 }
 
 interface PoseStore {
+  mode: Mode
   rotations: PoseRotations
   selectedBone: string | null
   isDragging: boolean
   lighting: LightingState
   savedPoses: Record<string, PoseRotations>
+
+  customModelUrl: string | null
+  customModelName: string | null
+  customBoneTree: DynamicBoneDef[]
+  customBoneOriginal: PoseRotations
+  modelError: string | null
 
   selectBone: (id: string | null) => void
   setDragging: (dragging: boolean) => void
@@ -42,11 +51,23 @@ interface PoseStore {
   loadPose: (name: string) => void
   deletePose: (name: string) => void
   setLighting: (patch: Partial<LightingState>) => void
+
+  loadCustomModel: (url: string, name: string) => void
+  unloadCustomModel: () => void
+  registerCustomBones: (defs: DynamicBoneDef[], initial: PoseRotations) => void
+  handleModelError: (message: string) => void
+  clearModelError: () => void
+}
+
+function baseRotationsFor(state: Pick<PoseStore, 'mode' | 'customBoneOriginal'>): PoseRotations {
+  if (state.mode === 'procedural') return defaultRotations()
+  return { ...state.customBoneOriginal }
 }
 
 export const useStore = create<PoseStore>()(
   persist(
     (set, get) => ({
+      mode: 'procedural',
       rotations: defaultRotations(),
       selectedBone: null,
       isDragging: false,
@@ -60,13 +81,18 @@ export const useStore = create<PoseStore>()(
       },
       savedPoses: {},
 
+      customModelUrl: null,
+      customModelName: null,
+      customBoneTree: [],
+      customBoneOriginal: {},
+      modelError: null,
+
       selectBone: (id) => set({ selectedBone: id }),
       setDragging: (dragging) => set({ isDragging: dragging }),
 
       setAxis: (boneId, axis, degrees) => {
-        const bone = boneMap[boneId]
-        if (!bone) return
-        const clamped = clampToLimit(bone, axis, degrees)
+        const mode = get().mode
+        const clamped = clampToBoneLimit(mode, boneId, axis, degrees)
         set((state) => ({
           rotations: {
             ...state.rotations,
@@ -76,38 +102,31 @@ export const useStore = create<PoseStore>()(
       },
 
       setBoneRotation: (boneId, rot) => {
-        const bone = boneMap[boneId]
-        if (!bone) return
+        const mode = get().mode
         set((state) => ({
           rotations: {
             ...state.rotations,
             [boneId]: {
-              x: clampToLimit(bone, 'x', rot.x),
-              y: clampToLimit(bone, 'y', rot.y),
-              z: clampToLimit(bone, 'z', rot.z),
+              x: clampToBoneLimit(mode, boneId, 'x', rot.x),
+              y: clampToBoneLimit(mode, boneId, 'y', rot.y),
+              z: clampToBoneLimit(mode, boneId, 'z', rot.z),
             },
           },
         }))
       },
 
       resetBone: (boneId) => {
-        const bone = boneMap[boneId]
-        if (!bone) return
-        set((state) => ({
-          rotations: {
-            ...state.rotations,
-            [boneId]: {
-              x: bone.defaultRotation?.x ?? 0,
-              y: bone.defaultRotation?.y ?? 0,
-              z: bone.defaultRotation?.z ?? 0,
-            },
-          },
-        }))
+        const state = get()
+        const base = baseRotationsFor(state)[boneId]
+        if (!base) return
+        set({ rotations: { ...state.rotations, [boneId]: base } })
       },
 
-      resetAll: () => set({ rotations: defaultRotations() }),
+      resetAll: () => set((state) => ({ rotations: baseRotationsFor(state) })),
 
       applyPreset: (presetName) => {
+        const state = get()
+        if (state.mode !== 'procedural') return
         const preset = presets[presetName]
         if (!preset) return
         set({ rotations: { ...defaultRotations(), ...preset } })
@@ -119,9 +138,10 @@ export const useStore = create<PoseStore>()(
       },
 
       loadPose: (name) => {
-        const pose = get().savedPoses[name]
+        const state = get()
+        const pose = state.savedPoses[name]
         if (!pose) return
-        set({ rotations: { ...defaultRotations(), ...pose } })
+        set({ rotations: { ...baseRotationsFor(state), ...pose } })
       },
 
       deletePose: (name) => {
@@ -132,6 +152,59 @@ export const useStore = create<PoseStore>()(
       },
 
       setLighting: (patch) => set((state) => ({ lighting: { ...state.lighting, ...patch } })),
+
+      loadCustomModel: (url, name) => {
+        const prevUrl = get().customModelUrl
+        if (prevUrl) URL.revokeObjectURL(prevUrl)
+        set({
+          mode: 'custom',
+          customModelUrl: url,
+          customModelName: name,
+          customBoneTree: [],
+          customBoneOriginal: {},
+          rotations: {},
+          selectedBone: null,
+          modelError: null,
+        })
+      },
+
+      unloadCustomModel: () => {
+        const prevUrl = get().customModelUrl
+        if (prevUrl) URL.revokeObjectURL(prevUrl)
+        set({
+          mode: 'procedural',
+          customModelUrl: null,
+          customModelName: null,
+          customBoneTree: [],
+          customBoneOriginal: {},
+          rotations: defaultRotations(),
+          selectedBone: null,
+        })
+      },
+
+      registerCustomBones: (defs, initial) =>
+        set((state) => ({
+          customBoneTree: defs,
+          customBoneOriginal: { ...state.customBoneOriginal, ...initial },
+          rotations: { ...initial, ...state.rotations },
+        })),
+
+      handleModelError: (message) => {
+        const prevUrl = get().customModelUrl
+        if (prevUrl) URL.revokeObjectURL(prevUrl)
+        set({
+          mode: 'procedural',
+          customModelUrl: null,
+          customModelName: null,
+          customBoneTree: [],
+          customBoneOriginal: {},
+          rotations: defaultRotations(),
+          selectedBone: null,
+          modelError: message,
+        })
+      },
+
+      clearModelError: () => set({ modelError: null }),
     }),
     {
       name: 'manga-pose-reference-store',

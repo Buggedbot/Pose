@@ -5,11 +5,12 @@ import { JointTree } from './ui/JointTree'
 import { JointSliders } from './ui/JointSliders'
 import { PresetBar } from './ui/PresetBar'
 import { LightingPanel } from './ui/LightingPanel'
+import { ModelPanel } from './ui/ModelPanel'
 
-type Tab = 'pose' | 'presets' | 'lighting'
+type Tab = 'pose' | 'presets' | 'lighting' | 'model'
 
 export default function App() {
-  const boneRefs = useRef<Record<string, THREE.Group | null>>({})
+  const boneRefs = useRef<Record<string, THREE.Object3D | null>>({})
   const [tab, setTab] = useState<Tab>('pose')
 
   return (
@@ -33,6 +34,9 @@ export default function App() {
             <button className={tab === 'lighting' ? 'tab tab-active' : 'tab'} onClick={() => setTab('lighting')}>
               Lighting
             </button>
+            <button className={tab === 'model' ? 'tab tab-active' : 'tab'} onClick={() => setTab('model')}>
+              Model
+            </button>
           </nav>
           <div className="sidebar-content">
             {tab === 'pose' && (
@@ -43,6 +47,7 @@ export default function App() {
             )}
             {tab === 'presets' && <PresetBar />}
             {tab === 'lighting' && <LightingPanel />}
+            {tab === 'model' && <ModelPanel />}
           </div>
         </aside>
       </main>

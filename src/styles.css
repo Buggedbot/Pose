@@ -283,3 +283,24 @@ body {
 .saved-pose-row .preset-button {
   flex: 1;
 }
+
+.preset-button:disabled {
+  background: #25272b;
+  color: #5b5d62;
+  border-color: #2a2c30;
+  cursor: not-allowed;
+}
+
+.error-banner {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  background: #3a2421;
+  border: 1px solid #6b3a32;
+  color: #ffb4a3;
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 12px;
+  margin-bottom: 12px;
+}

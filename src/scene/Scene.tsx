@@ -4,8 +4,8 @@ import { Canvas } from '@react-three/fiber'
 import { Grid, OrbitControls, TransformControls } from '@react-three/drei'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import { Mannequin } from './Mannequin'
+import { CustomModelView } from './CustomModelView'
 import { useStore } from '../state/useStore'
-import { boneMap } from './jointDefs'
 
 function LightingRig() {
   const lighting = useStore((s) => s.lighting)
@@ -63,7 +63,7 @@ function Floor() {
   )
 }
 
-function PosingGizmo({ boneRefs }: { boneRefs: React.MutableRefObject<Record<string, THREE.Group | null>> }) {
+function PosingGizmo({ boneRefs }: { boneRefs: React.MutableRefObject<Record<string, THREE.Object3D | null>> }) {
   const selectedBone = useStore((s) => s.selectedBone)
   const setDragging = useStore((s) => s.setDragging)
   const setBoneRotation = useStore((s) => s.setBoneRotation)
@@ -82,7 +82,7 @@ function PosingGizmo({ boneRefs }: { boneRefs: React.MutableRefObject<Record<str
 
   return (
     <>
-      {target && boneMap[selectedBone!] && (
+      {target && (
         <TransformControls
           object={target}
           mode="rotate"
@@ -113,11 +113,12 @@ function OrbitControlsRef({ innerRef }: { innerRef: React.RefObject<OrbitControl
 }
 
 export interface SceneProps {
-  boneRefs: React.MutableRefObject<Record<string, THREE.Group | null>>
+  boneRefs: React.MutableRefObject<Record<string, THREE.Object3D | null>>
 }
 
 export function Scene({ boneRefs }: SceneProps) {
-  const selectBone = useStore((s) => s.selectedBone)
+  const mode = useStore((s) => s.mode)
+  const customModelUrl = useStore((s) => s.customModelUrl)
 
   return (
     <Canvas
@@ -128,7 +129,11 @@ export function Scene({ boneRefs }: SceneProps) {
       <color attach="background" args={['#1d1f23']} />
       <LightingRig />
       <Floor />
-      <Mannequin boneRefs={boneRefs} />
+      {mode === 'custom' && customModelUrl ? (
+        <CustomModelView key={customModelUrl} url={customModelUrl} boneRefs={boneRefs} />
+      ) : (
+        <Mannequin boneRefs={boneRefs} />
+      )}
       <PosingGizmo boneRefs={boneRefs} />
     </Canvas>
   )

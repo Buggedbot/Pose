@@ -12,7 +12,7 @@ const HOVER_COLOR = '#ffc285'
 
 function BoneSegment({ def }: { def: BoneDef }) {
   const boneRefs = useContext(BoneRefsContext)
-  const groupRef = useRef<THREE.Group | null>(null)
+  const groupRef = useRef<THREE.Object3D | null>(null)
   const hoverRef = useRef(false)
 
   const rotation = useStore((s) => s.rotations[def.id])
@@ -99,7 +99,7 @@ function BoneSegment({ def }: { def: BoneDef }) {
 }
 
 export interface MannequinProps {
-  boneRefs: React.MutableRefObject<Record<string, THREE.Group | null>>
+  boneRefs: React.MutableRefObject<Record<string, THREE.Object3D | null>>
 }
 
 export function Mannequin({ boneRefs }: MannequinProps) {

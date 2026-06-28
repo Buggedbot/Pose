@@ -1,6 +1,6 @@
 import { createContext, type MutableRefObject } from 'react'
-import type { Group } from 'three'
+import type { Object3D } from 'three'
 
-export type BoneRefs = Record<string, Group | null>
+export type BoneRefs = Record<string, Object3D | null>
 
 export const BoneRefsContext = createContext<MutableRefObject<BoneRefs> | null>(null)

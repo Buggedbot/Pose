@@ -3,6 +3,7 @@ import { useStore } from '../state/useStore'
 import { presetNames } from '../poses/presets'
 
 export function PresetBar() {
+  const mode = useStore((s) => s.mode)
   const applyPreset = useStore((s) => s.applyPreset)
   const resetAll = useStore((s) => s.resetAll)
   const savePose = useStore((s) => s.savePose)
@@ -12,19 +13,28 @@ export function PresetBar() {
   const [poseName, setPoseName] = useState('')
 
   const savedNames = Object.keys(savedPoses)
+  const presetsDisabled = mode !== 'procedural'
 
   return (
     <div className="panel-section">
       <h3>Pose Presets</h3>
+      {presetsDisabled && (
+        <p className="hint">Presets are built for the mannequin and aren't available for a custom model.</p>
+      )}
       <div className="preset-grid">
         {presetNames.map((name) => (
-          <button key={name} className="preset-button" onClick={() => applyPreset(name)}>
+          <button
+            key={name}
+            className="preset-button"
+            disabled={presetsDisabled}
+            onClick={() => applyPreset(name)}
+          >
             {name}
           </button>
         ))}
       </div>
       <button className="reset-all-button" onClick={resetAll}>
-        Reset to Relaxed Stand
+        {mode === 'procedural' ? 'Reset to Relaxed Stand' : 'Reset to Default Pose'}
       </button>
 
       <h3>My Poses</h3>
