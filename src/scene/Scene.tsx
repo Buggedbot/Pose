@@ -86,7 +86,7 @@ function PosingGizmo({ boneRefs }: { boneRefs: React.MutableRefObject<Record<str
         <TransformControls
           object={target}
           mode="rotate"
-          size={0.6}
+          size={0.85}
           onObjectChange={handleObjectChange}
           onMouseDown={() => setDragging(true)}
           onMouseUp={() => setDragging(false)}

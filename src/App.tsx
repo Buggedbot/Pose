@@ -1,35 +1,32 @@
 import { useRef, useState } from 'react'
 import * as THREE from 'three'
 import { Scene } from './scene/Scene'
-import { JointTree } from './ui/JointTree'
-import { JointSliders } from './ui/JointSliders'
 import { PresetBar } from './ui/PresetBar'
 import { LightingPanel } from './ui/LightingPanel'
 import { ModelPanel } from './ui/ModelPanel'
+import { ViewportControls } from './ui/ViewportControls'
 
-type Tab = 'pose' | 'presets' | 'lighting' | 'model'
+type Tab = 'poses' | 'lighting' | 'model'
 
 export default function App() {
   const boneRefs = useRef<Record<string, THREE.Object3D | null>>({})
-  const [tab, setTab] = useState<Tab>('pose')
+  const [tab, setTab] = useState<Tab>('poses')
 
   return (
     <div className="app">
       <header className="app-header">
         <h1>Manga Pose Reference</h1>
-        <p>Drag a joint's gizmo in the viewport, or use the sliders, to pose the figure for sketching.</p>
+        <p>Click any part of the figure, then drag the gizmo rings to pose it. Orbit with the mouse to draw from any angle.</p>
       </header>
       <main className="app-main">
         <div className="viewport">
           <Scene boneRefs={boneRefs} />
+          <ViewportControls />
         </div>
         <aside className="sidebar">
           <nav className="tabs">
-            <button className={tab === 'pose' ? 'tab tab-active' : 'tab'} onClick={() => setTab('pose')}>
-              Pose
-            </button>
-            <button className={tab === 'presets' ? 'tab tab-active' : 'tab'} onClick={() => setTab('presets')}>
-              Presets
+            <button className={tab === 'poses' ? 'tab tab-active' : 'tab'} onClick={() => setTab('poses')}>
+              Poses
             </button>
             <button className={tab === 'lighting' ? 'tab tab-active' : 'tab'} onClick={() => setTab('lighting')}>
               Lighting
@@ -39,13 +36,7 @@ export default function App() {
             </button>
           </nav>
           <div className="sidebar-content">
-            {tab === 'pose' && (
-              <>
-                <JointSliders />
-                <JointTree />
-              </>
-            )}
-            {tab === 'presets' && <PresetBar />}
+            {tab === 'poses' && <PresetBar />}
             {tab === 'lighting' && <LightingPanel />}
             {tab === 'model' && <ModelPanel />}
           </div>
