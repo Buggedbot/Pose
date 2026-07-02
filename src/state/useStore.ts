@@ -39,6 +39,8 @@ interface PoseStore {
   customBoneTree: DynamicBoneDef[]
   customBoneOriginal: PoseRotations
   modelError: string | null
+  /** True when the active model is the app's built-in default (a bundled asset) rather than a user upload. */
+  isDefaultModel: boolean
 
   selectBone: (id: string | null) => void
   setDragging: (dragging: boolean) => void
@@ -52,11 +54,17 @@ interface PoseStore {
   deletePose: (name: string) => void
   setLighting: (patch: Partial<LightingState>) => void
 
-  loadCustomModel: (url: string, name: string) => void
+  loadCustomModel: (url: string, name: string, isDefault?: boolean) => void
   unloadCustomModel: () => void
   registerCustomBones: (defs: DynamicBoneDef[], initial: PoseRotations) => void
   handleModelError: (message: string) => void
   clearModelError: () => void
+}
+
+// Only object URLs created via URL.createObjectURL need revoking; a bundled asset path (e.g.
+// "/models/figure.glb") must not be passed to revokeObjectURL.
+function revokeIfBlob(url: string | null) {
+  if (url && url.startsWith('blob:')) URL.revokeObjectURL(url)
 }
 
 function baseRotationsFor(state: Pick<PoseStore, 'mode' | 'customBoneOriginal'>): PoseRotations {
@@ -86,6 +94,7 @@ export const useStore = create<PoseStore>()(
       customBoneTree: [],
       customBoneOriginal: {},
       modelError: null,
+      isDefaultModel: false,
 
       selectBone: (id) => set({ selectedBone: id }),
       setDragging: (dragging) => set({ isDragging: dragging }),
@@ -153,13 +162,13 @@ export const useStore = create<PoseStore>()(
 
       setLighting: (patch) => set((state) => ({ lighting: { ...state.lighting, ...patch } })),
 
-      loadCustomModel: (url, name) => {
-        const prevUrl = get().customModelUrl
-        if (prevUrl) URL.revokeObjectURL(prevUrl)
+      loadCustomModel: (url, name, isDefault = false) => {
+        revokeIfBlob(get().customModelUrl)
         set({
           mode: 'custom',
           customModelUrl: url,
           customModelName: name,
+          isDefaultModel: isDefault,
           customBoneTree: [],
           customBoneOriginal: {},
           rotations: {},
@@ -169,12 +178,12 @@ export const useStore = create<PoseStore>()(
       },
 
       unloadCustomModel: () => {
-        const prevUrl = get().customModelUrl
-        if (prevUrl) URL.revokeObjectURL(prevUrl)
+        revokeIfBlob(get().customModelUrl)
         set({
           mode: 'procedural',
           customModelUrl: null,
           customModelName: null,
+          isDefaultModel: false,
           customBoneTree: [],
           customBoneOriginal: {},
           rotations: defaultRotations(),
@@ -190,12 +199,12 @@ export const useStore = create<PoseStore>()(
         })),
 
       handleModelError: (message) => {
-        const prevUrl = get().customModelUrl
-        if (prevUrl) URL.revokeObjectURL(prevUrl)
+        revokeIfBlob(get().customModelUrl)
         set({
           mode: 'procedural',
           customModelUrl: null,
           customModelName: null,
+          isDefaultModel: false,
           customBoneTree: [],
           customBoneOriginal: {},
           rotations: defaultRotations(),

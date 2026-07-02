@@ -4,6 +4,7 @@ import { useStore } from '../state/useStore'
 export function ModelPanel() {
   const mode = useStore((s) => s.mode)
   const customModelName = useStore((s) => s.customModelName)
+  const isDefaultModel = useStore((s) => s.isDefaultModel)
   const modelError = useStore((s) => s.modelError)
   const loadCustomModel = useStore((s) => s.loadCustomModel)
   const unloadCustomModel = useStore((s) => s.unloadCustomModel)
@@ -18,9 +19,11 @@ export function ModelPanel() {
     loadCustomModel(url, file.name)
   }
 
+  const usingModel = mode === 'custom' && !!customModelName
+
   return (
     <div className="panel-section">
-      <h3>Custom Model</h3>
+      <h3>Figure</h3>
 
       {modelError && (
         <div className="error-banner">
@@ -31,33 +34,35 @@ export function ModelPanel() {
         </div>
       )}
 
-      {mode === 'custom' && customModelName ? (
-        <>
-          <p className="hint">Posing: {customModelName}</p>
-          <button className="reset-all-button" onClick={unloadCustomModel}>
-            Remove Model / Use Mannequin
-          </button>
-        </>
+      {usingModel ? (
+        <p className="hint">
+          Posing: {isDefaultModel ? 'the built-in figure' : customModelName}
+        </p>
       ) : (
-        <>
-          <p className="hint">Currently posing the built-in mannequin.</p>
-          <button className="reset-all-button" onClick={() => inputRef.current?.click()}>
-            Upload GLB/GLTF Model
-          </button>
-          <input
-            ref={inputRef}
-            type="file"
-            accept=".glb,.gltf"
-            style={{ display: 'none' }}
-            onChange={handleFileChange}
-          />
-        </>
+        <p className="hint">Posing the simple mannequin.</p>
+      )}
+
+      <button className="reset-all-button" onClick={() => inputRef.current?.click()}>
+        {usingModel ? 'Upload a Different Model' : 'Upload GLB/GLTF Model'}
+      </button>
+      <input
+        ref={inputRef}
+        type="file"
+        accept=".glb,.gltf,.vrm"
+        style={{ display: 'none' }}
+        onChange={handleFileChange}
+      />
+
+      {usingModel && (
+        <button className="reset-all-button" onClick={unloadCustomModel}>
+          Use Simple Mannequin
+        </button>
       )}
 
       <p className="hint">
-        Upload a rigged (skinned) humanoid model in GLB or GLTF format — for example one exported from Mixamo,
-        Ready Player Me, VRoid, or another tool you have rights to use. The app will detect the model's skeleton
-        and let you pose its joints the same way as the mannequin.
+        Upload a rigged (skinned) humanoid model in GLB, GLTF, or VRM format — for example one exported from
+        Mixamo, Ready Player Me, or VRoid. The app detects the model's skeleton and lets you pose its joints by
+        dragging, just like the mannequin.
       </p>
     </div>
   )
