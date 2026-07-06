@@ -1,7 +1,7 @@
 import { useContext, useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
-import { useFrame } from '@react-three/fiber'
+import { useFrame, type ThreeEvent } from '@react-three/fiber'
 import { useStore } from '../state/useStore'
 import { BoneRefsContext } from './boneRefsContext'
 import type { DynamicBoneDef } from './customModel'
@@ -45,6 +45,7 @@ export function CustomModelView({ url, boneRefs }: CustomModelViewProps) {
   const refs = contextBoneRefs ?? boneRefs
   const registerCustomBones = useStore((s) => s.registerCustomBones)
   const handleModelError = useStore((s) => s.handleModelError)
+  const selectBone = useStore((s) => s.selectBone)
   const [scene, setScene] = useState<THREE.Object3D | null>(null)
   const bonesRef = useRef<THREE.Bone[]>([])
 
@@ -124,6 +125,43 @@ export function CustomModelView({ url, boneRefs }: CustomModelViewProps) {
     }
   })
 
+  // Imported meshes are skinned, so we can't hang a click handler on each bone the way the
+  // procedural rig does. Instead, when the model is clicked we pick the bone whose current
+  // world position is nearest the clicked point — clicking a forearm grabs the forearm, etc.
+  function handleClick(e: ThreeEvent<MouseEvent>) {
+    if (bonesRef.current.length === 0) return
+    e.stopPropagation()
+    const point = e.point
+    const world = new THREE.Vector3()
+    let nearest: THREE.Bone | null = null
+    let nearestDist = Infinity
+    for (const bone of bonesRef.current) {
+      bone.getWorldPosition(world)
+      const d = world.distanceToSquared(point)
+      if (d < nearestDist) {
+        nearestDist = d
+        nearest = bone
+      }
+    }
+    if (nearest) selectBone(boneId(nearest))
+  }
+
+  function handlePointerOver(e: ThreeEvent<PointerEvent>) {
+    e.stopPropagation()
+    document.body.style.cursor = 'pointer'
+  }
+
+  function handlePointerOut() {
+    document.body.style.cursor = 'auto'
+  }
+
   if (!scene) return null
-  return <primitive object={scene} />
+  return (
+    <primitive
+      object={scene}
+      onClick={handleClick}
+      onPointerOver={handlePointerOver}
+      onPointerOut={handlePointerOut}
+    />
+  )
 }
