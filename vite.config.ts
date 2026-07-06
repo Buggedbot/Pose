@@ -1,10 +1,12 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-// GitHub Pages serves this project site under /pose/, so the production build needs that base
-// path for its asset URLs. Local dev (and any root-hosted deploy) stays at '/'.
+// Use relative asset paths in the production build so the app works no matter what
+// sub-path (or case) it is served from on GitHub Pages, e.g. /Pose/ vs /pose/.
+// import.meta.env.BASE_URL becomes './', which the default-model fetch resolves
+// relative to the page. Local dev stays at '/'.
 export default defineConfig(({ command }) => ({
-  base: command === 'build' ? '/pose/' : '/',
+  base: command === 'build' ? './' : '/',
   plugins: [react()],
   server: {
     host: true,
