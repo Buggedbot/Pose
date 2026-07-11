@@ -36,8 +36,13 @@ export default function App() {
   return (
     <div className="app">
       <header className="app-header">
-        <h1>Manga Pose Reference</h1>
-        <p>Click any part of the figure, then drag the gizmo rings to pose it. Orbit with the mouse to draw from any angle.</p>
+        <div className="app-header-text">
+          <h1>Manga Pose Reference</h1>
+          <p>Click any part of the figure, then drag the gizmo rings to pose it. Orbit with the mouse to draw from any angle.</p>
+        </div>
+        <a className="app-home-link" href="#/" onClick={() => (window.location.hash = '')}>
+          ← Home
+        </a>
       </header>
       <main className="app-main">
         <div className="viewport">
