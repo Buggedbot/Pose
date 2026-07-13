@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useRef, useState } from 'react'
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import {
@@ -21,25 +21,38 @@ function goToApp() {
 }
 
 // ---------------------------------------------------------------------------
-// Scroll choreography: camera dollies through real depth between keyframes,
-// with a damped pointer-parallax layered on top; background/fog colours ride
-// the same scroll progress.
+// Season choreography. Each scroll section is a season — Summer, Autumn,
+// Winter, Spring — and a cosmic finale. Camera, background/fog, key light,
+// the celestial orb, and the weather particles all ride the same scroll.
 // ---------------------------------------------------------------------------
 const CAM_POS: [number, number, number][] = [
   [0.25, 1.3, 3.2],
-  [-1.35, 1.5, 2.2],
+  [-1.6, 1.45, 2.8],
   [1.3, 1.0, 2.4],
-  [-0.8, 1.9, 1.9],
-  [0.1, 1.25, 3.4],
+  [-0.4, 1.5, 3.1],
+  [0.4, 1.25, 3.4],
 ]
 const CAM_LOOK: [number, number, number][] = [
   [-0.12, 1.1, 0],
-  [-0.2, 1.3, 0],
+  [-0.15, 1.2, 0],
   [-0.1, 1.0, 0],
-  [-0.2, 1.35, 0],
-  [-0.1, 1.1, 0],
+  [-1.05, 1.25, 0],
+  [0.3, 1.1, 0],
 ]
-const BG_COLORS = ['#120d24', '#0a1730', '#2a0f28', '#0d2338', '#170b2e'].map((c) => new THREE.Color(c))
+
+// Summer azure noon → autumn amber dusk → winter steel → spring plum dawn → cosmic brand
+const BG_COLORS = ['#173d63', '#3d1d0c', '#22344c', '#3b1e35', '#170b2e'].map((c) => new THREE.Color(c))
+const KEY_COLORS = ['#fff3d6', '#ffc07a', '#cfe0ff', '#ffd9e8', '#e8dcff'].map((c) => new THREE.Color(c))
+const KEY_INTENSITY = [1.5, 1.0, 0.85, 1.25, 1.15]
+const SUN_COLORS = ['#ffcf6e', '#ff8f4d', '#dcecff', '#ffc4de', '#8b5cf6'].map((c) => new THREE.Color(c))
+const SUN_INTENSITY = [4.5, 3.6, 2.2, 3.2, 3]
+
+function scrollPhase(offset: number) {
+  const n = SECTION_COUNT - 1
+  const t = THREE.MathUtils.clamp(offset, 0, 1) * n
+  const i = Math.min(Math.floor(t), n - 1)
+  return { t, i, f: THREE.MathUtils.smoothstep(t - i, 0, 1) }
+}
 
 function lerpTriple(a: [number, number, number], b: [number, number, number], t: number, out: THREE.Vector3) {
   out.set(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t)
@@ -55,10 +68,7 @@ function ScrollDirector() {
   const parallax = useRef({ x: 0, y: 0 })
 
   useFrame((state, delta) => {
-    const n = CAM_POS.length - 1
-    const t = THREE.MathUtils.clamp(scroll.offset, 0, 1) * n
-    const i = Math.min(Math.floor(t), n - 1)
-    const f = THREE.MathUtils.smoothstep(t - i, 0, 1)
+    const { i, f } = scrollPhase(scroll.offset)
 
     parallax.current.x = THREE.MathUtils.damp(parallax.current.x, state.pointer.x * 0.22, 2.5, delta)
     parallax.current.y = THREE.MathUtils.damp(parallax.current.y, state.pointer.y * 0.12, 2.5, delta)
@@ -80,20 +90,44 @@ function ScrollDirector() {
   return null
 }
 
-function Lights() {
+// Key light + celestial orb that turn golden in summer, amber in autumn, pale in winter,
+// blossom-pink in spring, and violet for the finale.
+function SeasonalLighting() {
+  const scroll = useScroll()
+  const keyRef = useRef<THREE.DirectionalLight>(null)
+  const sunMat = useRef<THREE.MeshStandardMaterial>(null)
+
+  useFrame(() => {
+    const { i, f } = scrollPhase(scroll.offset)
+    if (keyRef.current) {
+      keyRef.current.color.copy(KEY_COLORS[i]).lerp(KEY_COLORS[i + 1], f)
+      keyRef.current.intensity = THREE.MathUtils.lerp(KEY_INTENSITY[i], KEY_INTENSITY[i + 1], f)
+    }
+    if (sunMat.current) {
+      sunMat.current.emissive.copy(SUN_COLORS[i]).lerp(SUN_COLORS[i + 1], f)
+      sunMat.current.emissiveIntensity = THREE.MathUtils.lerp(SUN_INTENSITY[i], SUN_INTENSITY[i + 1], f)
+      sunMat.current.color.copy(sunMat.current.emissive)
+    }
+  })
+
   return (
     <>
       <ambientLight intensity={0.4} />
       <hemisphereLight args={['#cdb4ff', '#1a0f2e', 0.5]} />
-      <directionalLight position={[3, 5, 4]} intensity={1.15} castShadow shadow-mapSize={[1024, 1024]} />
-      {/* Cool rim from behind-left and a warm kicker from behind-right carve her silhouette out of the dark */}
-      <directionalLight position={[-4, 2.5, -3]} intensity={1.1} color="#7c9dff" />
-      <directionalLight position={[3.5, 1.5, -2.5]} intensity={0.9} color="#ff8a3d" />
+      <directionalLight ref={keyRef} position={[3, 5, 4]} intensity={1.15} castShadow shadow-mapSize={[1024, 1024]} />
+      <directionalLight position={[-4, 2.5, -3]} intensity={1.0} color="#7c9dff" />
+      <directionalLight position={[3.5, 1.5, -2.5]} intensity={0.8} color="#ff8a3d" />
+      {/* the season's sun / winter moon / spring blossom-light */}
+      <mesh position={[2.4, 3.2, -4.5]}>
+        <sphereGeometry args={[0.42, 32, 32]} />
+        <meshStandardMaterial ref={sunMat} toneMapped={false} />
+      </mesh>
     </>
   )
 }
 
-// Glossy dark floor that mirrors the character — an instant "premium" read.
+// Glossy dark floor that mirrors the character — reads as sunlit ground, wet leaves, or ice
+// depending on the season's light.
 function ReflectiveFloor() {
   return (
     <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]}>
@@ -112,6 +146,106 @@ function ReflectiveFloor() {
         mirror={0.6}
       />
     </mesh>
+  )
+}
+
+interface ParticleSeed {
+  x: number
+  y: number
+  z: number
+  phase: number
+  speed: number
+  spin: number
+  spinSpeed: number
+  scale: number
+  color: THREE.Color
+}
+
+// Weather for one season: instanced quads that fall, sway, and tumble, fading in only
+// while the scroll is inside that season's section.
+function SeasonWeather({
+  season,
+  colors,
+  count,
+  size,
+  fallSpeed,
+  sway,
+}: {
+  season: number
+  colors: string[]
+  count: number
+  size: number
+  fallSpeed: number
+  sway: number
+}) {
+  const scroll = useScroll()
+  const meshRef = useRef<THREE.InstancedMesh>(null)
+  const matRef = useRef<THREE.MeshBasicMaterial>(null)
+  const dummy = useMemo(() => new THREE.Object3D(), [])
+
+  const seeds = useMemo<ParticleSeed[]>(
+    () =>
+      Array.from({ length: count }, () => ({
+        x: (Math.random() - 0.5) * 7,
+        y: Math.random() * 4.5,
+        z: -1.2 + (Math.random() - 0.5) * 4,
+        phase: Math.random() * Math.PI * 2,
+        speed: 0.6 + Math.random() * 0.9,
+        spin: Math.random() * Math.PI * 2,
+        spinSpeed: (Math.random() - 0.5) * 3,
+        scale: 0.7 + Math.random() * 0.7,
+        color: new THREE.Color(colors[Math.floor(Math.random() * colors.length)]),
+      })),
+    [count, colors],
+  )
+
+  useEffect(() => {
+    const mesh = meshRef.current
+    if (!mesh) return
+    seeds.forEach((s, idx) => mesh.setColorAt(idx, s.color))
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true
+  }, [seeds])
+
+  useFrame((state) => {
+    const mesh = meshRef.current
+    if (!mesh) return
+    const { t } = scrollPhase(scroll.offset)
+    const w = THREE.MathUtils.clamp(1 - Math.abs(t - season), 0, 1)
+    if (matRef.current) matRef.current.opacity = w * 0.95
+    mesh.visible = w > 0.02
+    if (!mesh.visible) return
+
+    const time = state.clock.elapsedTime
+    const H = 4.5
+    seeds.forEach((s, idx) => {
+      const y = ((s.y - time * fallSpeed * s.speed) % H + H) % H
+      dummy.position.set(s.x + Math.sin(time * 0.8 + s.phase) * sway, y, s.z)
+      dummy.rotation.set(s.spin + time * s.spinSpeed, s.phase + time * s.spinSpeed * 0.7, 0)
+      dummy.scale.setScalar(s.scale)
+      dummy.updateMatrix()
+      mesh.setMatrixAt(idx, dummy.matrix)
+    })
+    mesh.instanceMatrix.needsUpdate = true
+  })
+
+  return (
+    <instancedMesh ref={meshRef} args={[undefined, undefined, count]} frustumCulled={false}>
+      <planeGeometry args={[size, size]} />
+      <meshBasicMaterial ref={matRef} transparent opacity={0} side={THREE.DoubleSide} depthWrite={false} />
+    </instancedMesh>
+  )
+}
+
+function Weather() {
+  return (
+    <>
+      {/* autumn leaves */}
+      <SeasonWeather season={1} colors={['#e07a2f', '#c1521d', '#a83c16', '#d9942b']} count={220} size={0.055} fallSpeed={0.55} sway={0.5} />
+      {/* winter snow */}
+      <SeasonWeather season={2} colors={['#ffffff', '#dcecff', '#c9dcf5']} count={320} size={0.028} fallSpeed={0.35} sway={0.28} />
+      {/* spring petals */}
+      <SeasonWeather season={3} colors={['#ffb7d5', '#ff9ec6', '#ffd3e6', '#ffc4de']} count={240} size={0.04} fallSpeed={0.42} sway={0.6} />
+    </>
   )
 }
 
@@ -137,18 +271,6 @@ function FloatingAccents() {
           <meshStandardMaterial color="#61e0ff" emissive="#61e0ff" emissiveIntensity={2.6} toneMapped={false} />
         </mesh>
       </Float>
-      <Float speed={2.1} rotationIntensity={0.3} floatIntensity={1.4}>
-        <mesh position={[-1.2, 2.4, -2.2]}>
-          <sphereGeometry args={[0.045, 16, 16]} />
-          <meshStandardMaterial color="#ff8a3d" emissive="#ffb27a" emissiveIntensity={4} toneMapped={false} />
-        </mesh>
-      </Float>
-      <Float speed={1.9} rotationIntensity={0.3} floatIntensity={1.1}>
-        <mesh position={[0.9, 2.9, -0.6]}>
-          <sphereGeometry args={[0.03, 16, 16]} />
-          <meshStandardMaterial color="#8b5cf6" emissive="#c4b5fd" emissiveIntensity={4} toneMapped={false} />
-        </mesh>
-      </Float>
     </>
   )
 }
@@ -156,11 +278,8 @@ function FloatingAccents() {
 function Atmosphere() {
   return (
     <>
-      <Stars radius={35} depth={30} count={1600} factor={3} saturation={0.4} fade speed={0.6} />
-      {/* fine magical dust hugging the character */}
-      <Sparkles count={90} scale={[3.2, 2.6, 2.4]} position={[-0.4, 1.3, 0]} size={1.6} speed={0.35} opacity={0.55} color="#ffd9b8" />
-      {/* larger, slower motes drifting through the whole set */}
-      <Sparkles count={40} scale={[8, 4, 6]} position={[0, 1.8, -1]} size={4} speed={0.18} opacity={0.35} color="#a78bfa" />
+      <Stars radius={35} depth={30} count={1400} factor={3} saturation={0.4} fade speed={0.6} />
+      <Sparkles count={80} scale={[3.2, 2.6, 2.4]} position={[-0.4, 1.3, 0]} size={1.6} speed={0.35} opacity={0.5} color="#ffd9b8" />
     </>
   )
 }
@@ -179,11 +298,13 @@ function Effects() {
 // ---------------------------------------------------------------------------
 
 function Feature({
+  season,
   kicker,
   title,
   align,
   children,
 }: {
+  season: string
   kicker: string
   title: string
   align: 'left' | 'right'
@@ -192,6 +313,8 @@ function Feature({
   return (
     <section className={`lp-section lp-align-${align}`}>
       <div className="lp-card lp-reveal">
+        <span className="lp-chip">{season}</span>
+        <br />
         <span className="lp-kicker">{kicker}</span>
         <h2>{title}</h2>
         <p>{children}</p>
@@ -223,7 +346,7 @@ function LandingContent() {
     <div className="lp-content" ref={rootRef}>
       <section className="lp-section lp-hero lp-align-right">
         <div className="lp-hero-text lp-reveal in-view">
-          <span className="lp-chip">✦ Free browser-based posing studio</span>
+          <span className="lp-chip">☀️ Summer — a muse for every season</span>
           <h1>
             Pose her.
             <br />
@@ -231,7 +354,7 @@ function LandingContent() {
           </h1>
           <p>
             A 3D reference studio for manga &amp; comic artists. Grab a joint, drag to pose, orbit to any
-            angle — or bring your own character model.
+            angle — and scroll to watch the seasons turn.
           </p>
           <div className="lp-cta-row">
             <button className="lp-launch lp-launch-lg lp-glow" onClick={goToApp}>
@@ -245,24 +368,24 @@ function LandingContent() {
         </div>
       </section>
 
-      <Feature align="left" kicker="Direct posing" title="Click a joint. Drag. Done.">
+      <Feature season="🍂 Autumn" align="left" kicker="Direct posing" title="Click a joint. Drag. Done.">
         No slider spreadsheets. Click any part of the figure and swing the rotation rings — the whole limb
-        follows with natural limits, so you block out a pose in seconds and spin the camera to check it from
-        every side.
+        follows with natural limits, so you block out a pose in seconds while the leaves tumble past.
       </Feature>
 
-      <Feature align="right" kicker="Your characters" title="Bring your own model">
+      <Feature season="❄️ Winter" align="right" kicker="Your characters" title="Bring your own model">
         Drop in any rigged GLB, GLTF, or VRM — from VRoid, Ready Player Me, Mixamo, or your own pipeline. The
         skeleton is detected automatically and poses exactly like the built-in figure.
       </Feature>
 
-      <Feature align="left" kicker="Shading reference" title="Light it. Save it. Reuse it.">
+      <Feature season="🌸 Spring" align="left" kicker="Shading reference" title="Light it. Save it. Reuse it.">
         Swing the key light to study how form catches shadow, then save your favourite poses and reload them
         whenever you sit down to draw. Presets get you started fast.
       </Feature>
 
       <section className="lp-section lp-final">
         <div className="lp-card lp-card-center lp-reveal">
+          <span className="lp-chip">✨ Every season, every pose</span>
           <h2>Ready to draw?</h2>
           <p>It runs right in your browser — nothing to install, nothing to pay.</p>
           <button className="lp-launch lp-launch-lg lp-glow" onClick={goToApp}>
@@ -301,12 +424,13 @@ function SectionDots() {
 
   return (
     <div className="lp-dots">
-      {Array.from({ length: SECTION_COUNT }, (_, i) => (
+      {['☀️', '🍂', '❄️', '🌸', '✨'].map((label, i) => (
         <button
           key={i}
           className={i === active ? 'lp-dot lp-dot-active' : 'lp-dot'}
           onClick={() => jump(i)}
           aria-label={`Go to section ${i + 1}`}
+          title={label}
         />
       ))}
     </div>
@@ -348,13 +472,14 @@ export function LandingPage() {
       </nav>
       <SectionDots />
       <Canvas shadows camera={{ position: [0.25, 1.3, 3.2], fov: 34 }} dpr={[1, 1.75]}>
-        <fog attach="fog" args={['#120d24', 5.5, 13]} />
+        <fog attach="fog" args={['#173d63', 5.5, 13]} />
         <Suspense fallback={null}>
           <ScrollControls pages={SECTION_COUNT} damping={0.28}>
             <ScrollDirector />
-            <Lights />
+            <SeasonalLighting />
             <HeroModel />
             <ReflectiveFloor />
+            <Weather />
             <FloatingAccents />
             <Atmosphere />
             <Scroll html style={{ width: '100%' }}>

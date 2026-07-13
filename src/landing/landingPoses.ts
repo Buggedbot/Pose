@@ -3,42 +3,52 @@ import * as THREE from 'three'
 // A pose is a set of per-bone local-rotation deltas (in degrees) applied on top of the
 // model's rest (T-pose) orientation. Bones not listed stay at rest. Keyed by the VRoid
 // standard bone names in the bundled model.
+//
+// Verified sign conventions for this rig:
+//   - Upper arm Z: negative lowers the LEFT arm to her side / raises it overhead when large
+//     positive; mirrored for the right arm.
+//   - Lower arm Y: curls the forearm inward across the body (negative for left, positive
+//     for right); X bends it backward/forward.
 export type Pose = Record<string, [number, number, number]>
 
-// Direction guide for this rig (verified): lowering an arm to the side is Z-negative for the
-// left arm and Z-positive for the right; raising overhead is the opposite sign.
+// One pose per scroll section — the seasons: Summer → Autumn → Winter → Spring → finale.
 export const POSES: Pose[] = [
-  // 0 — Hero: relaxed A-pose
-  {
-    J_Bip_L_UpperArm: [0, 0, -68],
-    J_Bip_R_UpperArm: [0, 0, 68],
-    J_Bip_C_Head: [5, 0, 0],
-  },
-  // 1 — Greeting: right arm raised in a wave
+  // 0 — SUMMER: sunny greeting, right arm up in a wave
   {
     J_Bip_L_UpperArm: [0, 0, -66],
-    J_Bip_R_UpperArm: [0, 0, -118],
-    J_Bip_C_Spine: [0, 6, 0],
-    J_Bip_C_Head: [3, 0, 10],
+    J_Bip_R_UpperArm: [0, 0, -128],
+    J_Bip_R_LowerArm: [0, 22, 0],
+    J_Bip_C_Spine: [0, 5, 0],
+    J_Bip_C_Head: [-4, 0, 8],
   },
-  // 2 — Contrapposto twist
+  // 1 — AUTUMN: wind-blown contrapposto, glancing at falling leaves
   {
-    J_Bip_C_Hips: [0, -12, 0],
-    J_Bip_C_Spine: [0, 16, 0],
+    J_Bip_C_Hips: [0, -14, 0],
+    J_Bip_C_Spine: [0, 18, 3],
     J_Bip_C_UpperChest: [0, 8, 0],
-    J_Bip_L_UpperArm: [0, 0, -54],
-    J_Bip_R_UpperArm: [0, 0, 64],
+    J_Bip_L_UpperArm: [0, 0, -50],
+    J_Bip_R_UpperArm: [0, 0, 62],
+    J_Bip_R_LowerArm: [0, 35, 0],
     J_Bip_R_UpperLeg: [10, 0, 0],
-    J_Bip_C_Head: [0, -12, 0],
+    J_Bip_C_Head: [-6, -16, 0],
   },
-  // 3 — Both arms raised in a stretch
+  // 2 — WINTER: bracing against the cold, arms hugged in, head tucked
   {
-    J_Bip_L_UpperArm: [0, 0, 120],
-    J_Bip_R_UpperArm: [0, 0, -120],
-    J_Bip_C_Spine: [-6, 0, 0],
-    J_Bip_C_Head: [-8, 0, 0],
+    J_Bip_L_UpperArm: [0, 0, -58],
+    J_Bip_R_UpperArm: [0, 0, 58],
+    J_Bip_L_LowerArm: [0, -125, 0],
+    J_Bip_R_LowerArm: [0, 125, 0],
+    J_Bip_C_Spine: [9, 0, 0],
+    J_Bip_C_Head: [14, 0, 4],
   },
-  // 4 — Dynamic fashion pose: left arm up, big hip sway
+  // 3 — SPRING: blossoming stretch, arms open to the sky in a wide Y
+  {
+    J_Bip_L_UpperArm: [0, 0, 100],
+    J_Bip_R_UpperArm: [0, 0, -100],
+    J_Bip_C_Spine: [-7, 0, 0],
+    J_Bip_C_Head: [-10, 0, 0],
+  },
+  // 4 — FINALE: playful fashion pose beside the call to action
   {
     J_Bip_C_Hips: [0, 14, 0],
     J_Bip_C_Spine: [0, -16, 0],
@@ -69,7 +79,7 @@ export function applyScrollPose(bones: Map<string, BoneRest>, offset: number) {
   const n = POSES.length - 1
   const t = THREE.MathUtils.clamp(offset, 0, 1) * n
   const i = Math.min(Math.floor(t), n - 1)
-  const f = t - i
+  const f = THREE.MathUtils.smoothstep(t - i, 0, 1)
   const a = POSES[i]
   const b = POSES[i + 1]
 
