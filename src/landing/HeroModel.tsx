@@ -26,6 +26,7 @@ export function HeroModel() {
   const { scene } = useGLTF(MODEL_URL)
   const scroll = useScroll()
   const swayRef = useRef<THREE.Group>(null)
+  const gaze = useRef({ x: 0, y: 0 })
 
   const bones = useMemo(() => {
     const map = new Map<string, BoneRest>()
@@ -42,12 +43,28 @@ export function HeroModel() {
     return map
   }, [scene])
 
-  useFrame((state) => {
+  useFrame((state, delta) => {
     applyScrollPose(bones, scroll.offset)
+
+    // She glances toward the cursor — damped so the motion has weight, strongest on the
+    // hero section and fading out as the scripted poses take over down the page.
+    const strength = 1 - Math.min(scroll.offset * 3, 0.8)
+    gaze.current.x = THREE.MathUtils.damp(gaze.current.x, state.pointer.x * strength, 3, delta)
+    gaze.current.y = THREE.MathUtils.damp(gaze.current.y, state.pointer.y * strength, 3, delta)
+    const head = bones.get('J_Bip_C_Head')
+    const neck = bones.get('J_Bip_C_Neck')
+    if (head) {
+      head.bone.rotateY(gaze.current.x * 0.32)
+      head.bone.rotateX(-gaze.current.y * 0.14)
+    }
+    if (neck) {
+      neck.bone.rotateY(gaze.current.x * 0.12)
+    }
+
     if (swayRef.current) {
       const t = state.clock.elapsedTime
-      swayRef.current.rotation.y = Math.sin(t * 0.4) * 0.08
-      swayRef.current.position.y = Math.sin(t * 0.9) * 0.01
+      swayRef.current.rotation.y = Math.sin(t * 0.4) * 0.07
+      swayRef.current.position.y = Math.sin(t * 0.9) * 0.012
     }
   })
 
