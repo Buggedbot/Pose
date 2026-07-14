@@ -1,6 +1,7 @@
 import { useContext, useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
+import { MeshoptDecoder } from 'three-stdlib'
 import { useFrame, type ThreeEvent } from '@react-three/fiber'
 import { useStore } from '../state/useStore'
 import { BoneRefsContext } from './boneRefsContext'
@@ -52,6 +53,9 @@ export function CustomModelView({ url, boneRefs }: CustomModelViewProps) {
   useEffect(() => {
     let cancelled = false
     const loader = new GLTFLoader()
+    // Bundled/imported models may be meshopt-compressed to keep them small.
+    const decoder = typeof MeshoptDecoder === 'function' ? (MeshoptDecoder as () => unknown)() : MeshoptDecoder
+    loader.setMeshoptDecoder(decoder as Parameters<GLTFLoader['setMeshoptDecoder']>[0])
 
     loader.load(
       url,
