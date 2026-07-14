@@ -1,61 +1,109 @@
 import * as THREE from 'three'
 
-// A pose is a set of per-bone local-rotation deltas (in degrees) applied on top of the
-// model's rest (T-pose) orientation. Bones not listed stay at rest. Keyed by the VRoid
-// standard bone names in the bundled model.
-//
-// Verified sign conventions for this rig:
-//   - Upper arm Z: negative lowers the LEFT arm to her side / raises it overhead when large
-//     positive; mirrored for the right arm.
-//   - Lower arm Y: curls the forearm inward across the body (negative for left, positive
-//     for right); X bends it backward/forward.
-export type Pose = Record<string, [number, number, number]>
+// The landing hero can be any rigged humanoid, and different rigs name their bones
+// differently (VRoid `J_Bip_L_UpperArm`, Unreal `upperarm_l`, Mixamo `LeftArm`, …). So
+// poses are authored against abstract humanoid ROLES, and each role is resolved to the
+// actual bone at load time by matching the skeleton's names.
+export type Role =
+  | 'hips'
+  | 'spine'
+  | 'chest'
+  | 'neck'
+  | 'head'
+  | 'leftUpperArm'
+  | 'leftLowerArm'
+  | 'rightUpperArm'
+  | 'rightLowerArm'
+  | 'leftUpperLeg'
+  | 'leftLowerLeg'
+  | 'rightUpperLeg'
+  | 'rightLowerLeg'
 
-// One pose per scroll section — the seasons: Summer → Autumn → Winter → Spring → finale.
+// Helper/twist/corrective bones we never want to grab as the primary joint.
+const HELPER = /twist|fix|fuzz|_end$|_end_|metacarpal|weapon|corrective|_ik|roll|bckl|latissimus|dummy|helper|adjust/i
+
+// Candidate patterns per role, tried in order; first non-helper match (shortest name) wins.
+const ROLE_PATTERNS: Record<Role, RegExp[]> = {
+  hips: [/pelvis/i, /\bhips?\b/i, /^hip/i, /^root$/i],
+  spine: [/spine_?0*2(\b|_)/i, /spine_?0*3(\b|_)/i, /^spine$/i, /spine1/i, /waist/i],
+  chest: [/spine_?0*5(\b|_)/i, /spine_?0*4(\b|_)/i, /upper_?chest/i, /\bchest\b/i],
+  neck: [/neck_?0*1(\b|_)/i, /neck/i],
+  head: [/^head(\b|_)/i, /_head(\b|_)/i, /\bhead\b/i],
+  leftUpperArm: [/upperarm_l(\b|_)/i, /l_upperarm/i, /left_?upperarm/i, /left_?arm(\b|_)/i, /arm_l(\b|_)/i],
+  leftLowerArm: [/lowerarm_l(\b|_)/i, /l_lowerarm/i, /left_?lowerarm/i, /left_?forearm/i, /forearm_l/i],
+  rightUpperArm: [/upperarm_r(\b|_)/i, /r_upperarm/i, /right_?upperarm/i, /right_?arm(\b|_)/i, /arm_r(\b|_)/i],
+  rightLowerArm: [/lowerarm_r(\b|_)/i, /r_lowerarm/i, /right_?lowerarm/i, /right_?forearm/i, /forearm_r/i],
+  leftUpperLeg: [/thigh_l(\b|_)/i, /l_upperleg/i, /left_?upperleg/i, /upperleg_l/i, /left_?leg(\b|_)/i],
+  leftLowerLeg: [/calf_l(\b|_)/i, /l_lowerleg/i, /left_?lowerleg/i, /shin_l/i, /lowerleg_l/i],
+  rightUpperLeg: [/thigh_r(\b|_)/i, /r_upperleg/i, /right_?upperleg/i, /upperleg_r/i, /right_?leg(\b|_)/i],
+  rightLowerLeg: [/calf_r(\b|_)/i, /r_lowerleg/i, /right_?lowerleg/i, /shin_r/i, /lowerleg_r/i],
+}
+
+export function resolveHumanoidBones(names: string[]): Partial<Record<Role, string>> {
+  const usable = names.filter((n) => !HELPER.test(n))
+  const out: Partial<Record<Role, string>> = {}
+  for (const role of Object.keys(ROLE_PATTERNS) as Role[]) {
+    for (const re of ROLE_PATTERNS[role]) {
+      const matches = usable.filter((n) => re.test(n)).sort((a, b) => a.length - b.length)
+      if (matches.length) {
+        out[role] = matches[0]
+        break
+      }
+    }
+  }
+  return out
+}
+
+// A pose is a set of per-role local-rotation deltas (degrees) on top of the model's rest
+// orientation. One pose per scroll section — the seasons.
+export type Pose = Partial<Record<Role, [number, number, number]>>
+
+// Axis notes for this rig (verified): arm raise/lower and elbow bend are on Z (right arm
+// Z-positive raises, left arm Z-negative raises); X twists; Y swings the arm forward/back.
 export const POSES: Pose[] = [
   // 0 — SUMMER: sunny greeting, right arm up in a wave
   {
-    J_Bip_L_UpperArm: [0, 0, -66],
-    J_Bip_R_UpperArm: [0, 0, -128],
-    J_Bip_R_LowerArm: [0, 22, 0],
-    J_Bip_C_Spine: [0, 5, 0],
-    J_Bip_C_Head: [-4, 0, 8],
+    leftUpperArm: [0, 0, -15],
+    rightUpperArm: [0, 0, 138],
+    rightLowerArm: [0, 0, 72],
+    spine: [0, 0, 3],
+    head: [0, -8, 5],
   },
-  // 1 — AUTUMN: wind-blown contrapposto, glancing at falling leaves
+  // 1 — AUTUMN: relaxed weight shift, watching the leaves fall
   {
-    J_Bip_C_Hips: [0, -14, 0],
-    J_Bip_C_Spine: [0, 18, 3],
-    J_Bip_C_UpperChest: [0, 8, 0],
-    J_Bip_L_UpperArm: [0, 0, -50],
-    J_Bip_R_UpperArm: [0, 0, 62],
-    J_Bip_R_LowerArm: [0, 35, 0],
-    J_Bip_R_UpperLeg: [10, 0, 0],
-    J_Bip_C_Head: [-6, -16, 0],
+    hips: [0, 0, 6],
+    spine: [0, 10, 4],
+    chest: [0, 6, 0],
+    leftUpperArm: [0, 0, -10],
+    rightUpperArm: [0, 0, 12],
+    head: [0, 16, -5],
   },
-  // 2 — WINTER: bracing against the cold, arms hugged in, head tucked
+  // 2 — WINTER: hugging herself against the cold, head tucked
   {
-    J_Bip_L_UpperArm: [0, 0, -58],
-    J_Bip_R_UpperArm: [0, 0, 58],
-    J_Bip_L_LowerArm: [0, -125, 0],
-    J_Bip_R_LowerArm: [0, 125, 0],
-    J_Bip_C_Spine: [9, 0, 0],
-    J_Bip_C_Head: [14, 0, 4],
+    leftUpperArm: [0, 40, 22],
+    rightUpperArm: [0, -40, -22],
+    leftLowerArm: [0, 0, -95],
+    rightLowerArm: [0, 0, 95],
+    spine: [14, 0, 0],
+    chest: [8, 0, 0],
+    head: [16, 0, 0],
   },
   // 3 — SPRING: blossoming stretch, arms open to the sky in a wide Y
   {
-    J_Bip_L_UpperArm: [0, 0, 100],
-    J_Bip_R_UpperArm: [0, 0, -100],
-    J_Bip_C_Spine: [-7, 0, 0],
-    J_Bip_C_Head: [-10, 0, 0],
+    leftUpperArm: [0, 0, -150],
+    rightUpperArm: [0, 0, 150],
+    spine: [-8, 0, 0],
+    chest: [-5, 0, 0],
+    head: [-12, 0, 0],
   },
-  // 4 — FINALE: playful fashion pose beside the call to action
+  // 4 — FINALE: playful pose beside the call to action, one arm raised
   {
-    J_Bip_C_Hips: [0, 14, 0],
-    J_Bip_C_Spine: [0, -16, 0],
-    J_Bip_L_UpperArm: [0, 0, 100],
-    J_Bip_R_UpperArm: [0, 0, 58],
-    J_Bip_L_UpperLeg: [8, 0, 0],
-    J_Bip_C_Head: [4, 12, 0],
+    hips: [0, 0, -6],
+    spine: [0, -8, -5],
+    leftUpperArm: [0, 0, -14],
+    rightUpperArm: [0, 0, 120],
+    rightLowerArm: [0, 0, 30],
+    head: [0, -10, 6],
   },
 ]
 
@@ -73,9 +121,8 @@ function lerp(a: number, b: number, t: number) {
   return a + (b - a) * t
 }
 
-// Given the scroll offset (0..1), blend between adjacent pose keyframes and write the
-// resulting local rotation onto every tracked bone (unlisted bones fall back to rest).
-export function applyScrollPose(bones: Map<string, BoneRest>, offset: number) {
+// Blend between adjacent pose keyframes by scroll offset and write onto each role's bone.
+export function applyScrollPose(roleBones: Map<Role, BoneRest>, offset: number) {
   const n = POSES.length - 1
   const t = THREE.MathUtils.clamp(offset, 0, 1) * n
   const i = Math.min(Math.floor(t), n - 1)
@@ -83,9 +130,9 @@ export function applyScrollPose(bones: Map<string, BoneRest>, offset: number) {
   const a = POSES[i]
   const b = POSES[i + 1]
 
-  for (const [name, { bone, rest }] of bones) {
-    const ra = a[name] ?? ZERO
-    const rb = b[name] ?? ZERO
+  for (const [role, { bone, rest }] of roleBones) {
+    const ra = a[role] ?? ZERO
+    const rb = b[role] ?? ZERO
     _euler.set(
       THREE.MathUtils.degToRad(lerp(ra[0], rb[0], f)),
       THREE.MathUtils.degToRad(lerp(ra[1], rb[1], f)),
