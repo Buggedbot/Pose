@@ -36,6 +36,14 @@ function normalizeTransform(object: THREE.Object3D) {
   }
 }
 
+// Click-picking uses an allowlist of core skeleton parts so hair, cloth, breast, and facial
+// bones are never grabbed. A bone is poseable if it names a body part AND isn't a
+// twist/corrective helper. Rigs with no recognised names fall back to all bones.
+const PRIMARY_BONE =
+  /pelvis|hips?|spine|chest|torso|neck|head|clavicle|shoulder|upperarm|lowerarm|forearm|hand|thigh|calf|shin|upperleg|lowerleg|foot|knee|elbow|finger|thumb|index|middle|ring|pinky|(^|_)arm(_|\d|$)|(^|_)leg(_|\d|$)/i
+const HELPER_BONE =
+  /twist|fix|fuzz|_end($|_)|metacarpal|corrective|_ik\b|roll|bckl|latissimus|dummy|helper|adjust|scapula|(^|_)root|earring/i
+
 export interface CustomModelViewProps {
   url: string
   boneRefs: React.MutableRefObject<Record<string, THREE.Object3D | null>>
@@ -49,6 +57,9 @@ export function CustomModelView({ url, boneRefs }: CustomModelViewProps) {
   const selectBone = useStore((s) => s.selectBone)
   const [scene, setScene] = useState<THREE.Object3D | null>(null)
   const bonesRef = useRef<THREE.Bone[]>([])
+  // Subset of bonesRef used for click-picking: real anatomy only, so a click never lands on
+  // a twist/fix/root helper bone (rigs like Unreal's can have hundreds of them).
+  const clickBonesRef = useRef<THREE.Bone[]>([])
 
   useEffect(() => {
     let cancelled = false
@@ -90,6 +101,8 @@ export function CustomModelView({ url, boneRefs }: CustomModelViewProps) {
         })
 
         bonesRef.current = bones
+        const poseable = bones.filter((b) => PRIMARY_BONE.test(b.name) && !HELPER_BONE.test(b.name))
+        clickBonesRef.current = poseable.length ? poseable : bones
         registerCustomBones(defs, initial)
         bones.forEach((b) => {
           refs.current[boneId(b)] = b
@@ -133,13 +146,14 @@ export function CustomModelView({ url, boneRefs }: CustomModelViewProps) {
   // procedural rig does. Instead, when the model is clicked we pick the bone whose current
   // world position is nearest the clicked point — clicking a forearm grabs the forearm, etc.
   function handleClick(e: ThreeEvent<MouseEvent>) {
-    if (bonesRef.current.length === 0) return
+    const candidates = clickBonesRef.current.length ? clickBonesRef.current : bonesRef.current
+    if (candidates.length === 0) return
     e.stopPropagation()
     const point = e.point
     const world = new THREE.Vector3()
     let nearest: THREE.Bone | null = null
     let nearestDist = Infinity
-    for (const bone of bonesRef.current) {
+    for (const bone of candidates) {
       bone.getWorldPosition(world)
       const d = world.distanceToSquared(point)
       if (d < nearestDist) {
