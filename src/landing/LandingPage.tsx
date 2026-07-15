@@ -40,8 +40,8 @@ const CAM_LOOK: [number, number, number][] = [
   [0.3, 1.1, 0],
 ]
 
-// Summer azure noon → autumn amber dusk → winter steel → spring plum dawn → cosmic brand
-const BG_COLORS = ['#173d63', '#3d1d0c', '#22344c', '#3b1e35', '#170b2e'].map((c) => new THREE.Color(c))
+// Summer bright beach noon → autumn amber dusk → winter steel → spring plum dawn → cosmic brand
+const BG_COLORS = ['#3f9fd6', '#3d1d0c', '#22344c', '#3b1e35', '#170b2e'].map((c) => new THREE.Color(c))
 const KEY_COLORS = ['#fff3d6', '#ffc07a', '#cfe0ff', '#ffd9e8', '#e8dcff'].map((c) => new THREE.Color(c))
 const KEY_INTENSITY = [1.5, 1.0, 0.85, 1.25, 1.15]
 const SUN_COLORS = ['#ffcf6e', '#ff8f4d', '#dcecff', '#ffc4de', '#8b5cf6'].map((c) => new THREE.Color(c))
@@ -146,6 +146,164 @@ function ReflectiveFloor() {
         mirror={0.6}
       />
     </mesh>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Beach (summer only): sand ground, an animated ocean, and a couple of procedural palm
+// trees. All three fade in only while the scroll is near the summer section, using the
+// same distance-from-season weighting as the seasonal weather below.
+// ---------------------------------------------------------------------------
+
+function seasonWeight(offset: number, season: number) {
+  const { t } = scrollPhase(offset)
+  return THREE.MathUtils.clamp(1 - Math.abs(t - season), 0, 1)
+}
+
+// A warm sand plane laid just above the dark reflective floor; fully opaque in summer,
+// fading to transparent (revealing the icy/glossy floor) in every other season.
+function SandFloor() {
+  const scroll = useScroll()
+  const matRef = useRef<THREE.MeshStandardMaterial>(null)
+  const meshRef = useRef<THREE.Mesh>(null)
+
+  useFrame(() => {
+    const w = seasonWeight(scroll.offset, 0)
+    if (matRef.current) matRef.current.opacity = w
+    if (meshRef.current) meshRef.current.visible = w > 0.02
+  })
+
+  return (
+    <mesh ref={meshRef} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.003, 0]} receiveShadow>
+      <planeGeometry args={[24, 24]} />
+      <meshStandardMaterial ref={matRef} color="#e8cf9d" roughness={1} transparent opacity={0} />
+    </mesh>
+  )
+}
+
+// A wide plane behind the figure with per-vertex sine-wave displacement for rolling
+// swell — cheap enough at this resolution to update every frame.
+function Ocean() {
+  const scroll = useScroll()
+  const meshRef = useRef<THREE.Mesh>(null)
+  const matRef = useRef<THREE.MeshStandardMaterial>(null)
+  const geometry = useMemo(() => new THREE.PlaneGeometry(26, 16, 60, 36), [])
+
+  useFrame((state) => {
+    const w = seasonWeight(scroll.offset, 0)
+    if (matRef.current) matRef.current.opacity = w * 0.88
+    const mesh = meshRef.current
+    if (!mesh) return
+    mesh.visible = w > 0.02
+    if (!mesh.visible) return
+
+    const time = state.clock.elapsedTime
+    const pos = geometry.attributes.position as THREE.BufferAttribute
+    for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i)
+      const y = pos.getY(i)
+      const wave =
+        Math.sin(x * 0.9 + time * 1.1) * 0.022 +
+        Math.sin(y * 0.6 + time * 0.7) * 0.018 +
+        Math.sin((x + y) * 1.4 + time * 1.6) * 0.01
+      pos.setZ(i, wave)
+    }
+    pos.needsUpdate = true
+    geometry.computeVertexNormals()
+  })
+
+  return (
+    <mesh ref={meshRef} geometry={geometry} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.01, -11]}>
+      <meshStandardMaterial ref={matRef} color="#1f8aa0" roughness={0.25} metalness={0.1} transparent opacity={0} />
+    </mesh>
+  )
+}
+
+// A stylized procedural palm tree: stacked tapered trunk segments with a gentle curve,
+// a fan of frond cones on top, and a couple of coconuts. Sways slowly in a breeze.
+function PalmTree({
+  position,
+  scale = 1,
+  lean = 0.12,
+  phase = 0,
+}: {
+  position: [number, number, number]
+  scale?: number
+  lean?: number
+  phase?: number
+}) {
+  const scroll = useScroll()
+  const groupRef = useRef<THREE.Group>(null)
+  const trunkMat = useMemo(
+    () => new THREE.MeshStandardMaterial({ color: '#8a6b48', roughness: 0.95, transparent: true, opacity: 0 }),
+    [],
+  )
+  const frondMat = useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
+        color: '#2f7d4f',
+        roughness: 0.7,
+        side: THREE.DoubleSide,
+        transparent: true,
+        opacity: 0,
+      }),
+    [],
+  )
+  const nutMat = useMemo(
+    () => new THREE.MeshStandardMaterial({ color: '#4a3423', roughness: 0.9, transparent: true, opacity: 0 }),
+    [],
+  )
+
+  const segments = 6
+  const trunkHeight = 2.1
+  const segHeight = trunkHeight / segments
+
+  useFrame((state) => {
+    const w = seasonWeight(scroll.offset, 0)
+    trunkMat.opacity = w
+    frondMat.opacity = w
+    nutMat.opacity = w
+    const group = groupRef.current
+    if (!group) return
+    group.visible = w > 0.02
+    group.rotation.z = lean + Math.sin(state.clock.elapsedTime * 0.6 + phase) * 0.025
+  })
+
+  return (
+    <group ref={groupRef} position={position} scale={scale}>
+      {Array.from({ length: segments }, (_, i) => (
+        <mesh key={i} position={[Math.sin(i * 0.5) * 0.03, segHeight * i + segHeight / 2, 0]} material={trunkMat} castShadow>
+          <cylinderGeometry args={[0.085 - i * 0.006, 0.1 - i * 0.006, segHeight * 1.05, 7]} />
+        </mesh>
+      ))}
+      <group position={[Math.sin(segments * 0.5) * 0.03, trunkHeight, 0]}>
+        {Array.from({ length: 7 }, (_, i) => {
+          const angle = (i / 7) * Math.PI * 2
+          return (
+            <mesh key={i} rotation={[1.15, 0, angle]} position={[0, 0.02, 0]} material={frondMat}>
+              <coneGeometry args={[0.15, 1.05, 4]} />
+            </mesh>
+          )
+        })}
+        <mesh position={[0.06, -0.05, 0.02]} material={nutMat}>
+          <sphereGeometry args={[0.045, 8, 8]} />
+        </mesh>
+        <mesh position={[-0.04, -0.06, -0.04]} material={nutMat}>
+          <sphereGeometry args={[0.04, 8, 8]} />
+        </mesh>
+      </group>
+    </group>
+  )
+}
+
+function Beach() {
+  return (
+    <>
+      <SandFloor />
+      <Ocean />
+      <PalmTree position={[-1.9, 0, -1.4]} scale={1.15} lean={-0.16} phase={0} />
+      <PalmTree position={[1.55, 0, -2.6]} scale={0.85} lean={0.14} phase={2.1} />
+    </>
   )
 }
 
@@ -275,10 +433,27 @@ function FloatingAccents() {
   )
 }
 
+// Stars suit the dusk/night-leaning seasons but not a sunlit beach, so they're hidden
+// (not just dimmed — a visible starfield in daylight reads as a bug) while summer is close.
+function AtmosphereStars() {
+  const scroll = useScroll()
+  const groupRef = useRef<THREE.Group>(null)
+
+  useFrame(() => {
+    if (groupRef.current) groupRef.current.visible = seasonWeight(scroll.offset, 0) < 0.6
+  })
+
+  return (
+    <group ref={groupRef}>
+      <Stars radius={35} depth={30} count={1400} factor={3} saturation={0.4} fade speed={0.6} />
+    </group>
+  )
+}
+
 function Atmosphere() {
   return (
     <>
-      <Stars radius={35} depth={30} count={1400} factor={3} saturation={0.4} fade speed={0.6} />
+      <AtmosphereStars />
       <Sparkles count={80} scale={[3.2, 2.6, 2.4]} position={[-0.4, 1.3, 0]} size={1.6} speed={0.35} opacity={0.5} color="#ffd9b8" />
     </>
   )
@@ -479,6 +654,7 @@ export function LandingPage() {
             <SeasonalLighting />
             <HeroModel />
             <ReflectiveFloor />
+            <Beach />
             <Weather />
             <FloatingAccents />
             <Atmosphere />
