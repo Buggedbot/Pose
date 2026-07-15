@@ -58,14 +58,17 @@ export function resolveHumanoidBones(names: string[]): Partial<Record<Role, stri
 // orientation. One pose per scroll section — the seasons.
 export type Pose = Partial<Record<Role, [number, number, number]>>
 
-// Axis notes for this rig (verified): arm raise/lower and elbow bend are on Z (right arm
-// Z-positive raises, left arm Z-negative raises); X twists; Y swings the arm forward/back.
+// Axis notes for this rig (verified): shoulder raise/lower is on Z (right arm Z-positive
+// raises, left arm Z-negative raises); the elbow bend is on X (positive folds the forearm
+// down/in from wherever the upper arm is pointing) — using Z for the elbow instead produces
+// a twisted, broken-looking wrist, since it rolls the forearm around its own long axis
+// rather than hinging it.
 export const POSES: Pose[] = [
   // 0 — SUMMER: sunny greeting, right arm up in a wave
   {
     leftUpperArm: [0, 0, -15],
     rightUpperArm: [0, 0, 138],
-    rightLowerArm: [0, 0, 72],
+    rightLowerArm: [60, 0, 0],
     spine: [0, 0, 3],
     head: [0, -8, 5],
   },
@@ -78,12 +81,12 @@ export const POSES: Pose[] = [
     rightUpperArm: [0, 0, 12],
     head: [0, 16, -5],
   },
-  // 2 — WINTER: hugging herself against the cold, head tucked
+  // 2 — WINTER: bracing against the cold, arms drawn in, head tucked
   {
-    leftUpperArm: [0, 40, 22],
-    rightUpperArm: [0, -40, -22],
-    leftLowerArm: [0, 0, -95],
-    rightLowerArm: [0, 0, 95],
+    leftUpperArm: [0, 0, -20],
+    rightUpperArm: [0, 0, 20],
+    leftLowerArm: [100, 0, 0],
+    rightLowerArm: [100, 0, 0],
     spine: [14, 0, 0],
     chest: [8, 0, 0],
     head: [16, 0, 0],
@@ -102,7 +105,7 @@ export const POSES: Pose[] = [
     spine: [0, -8, -5],
     leftUpperArm: [0, 0, -14],
     rightUpperArm: [0, 0, 120],
-    rightLowerArm: [0, 0, 30],
+    rightLowerArm: [25, 0, 0],
     head: [0, -10, 6],
   },
 ]
