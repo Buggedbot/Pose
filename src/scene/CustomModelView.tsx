@@ -42,7 +42,7 @@ function normalizeTransform(object: THREE.Object3D) {
 const PRIMARY_BONE =
   /pelvis|hips?|spine|chest|torso|neck|head|clavicle|shoulder|upperarm|lowerarm|forearm|hand|thigh|calf|shin|upperleg|lowerleg|foot|knee|elbow|finger|thumb|index|middle|ring|pinky|(^|_)arm(_|\d|$)|(^|_)leg(_|\d|$)/i
 const HELPER_BONE =
-  /twist|fix|fuzz|_end($|_)|metacarpal|corrective|_ik\b|roll|bckl|latissimus|dummy|helper|adjust|scapula|(^|_)root|earring/i
+  /twist|fix|fuzz|_end($|_)|metacarpal|corrective|_ik\b|^ik_|roll|bckl|latissimus|dummy|helper|adjust|scapula|(^|_)root|earring|jnt|muscle/i
 
 export interface CustomModelViewProps {
   url: string
@@ -56,10 +56,9 @@ export function CustomModelView({ url, boneRefs }: CustomModelViewProps) {
   const handleModelError = useStore((s) => s.handleModelError)
   const selectBone = useStore((s) => s.selectBone)
   const [scene, setScene] = useState<THREE.Object3D | null>(null)
+  // Holds only the poseable subset of the skeleton (see `poseable` below) — real anatomy
+  // joints, not twist/IK/finger-corrective helpers.
   const bonesRef = useRef<THREE.Bone[]>([])
-  // Subset of bonesRef used for click-picking: real anatomy only, so a click never lands on
-  // a twist/fix/root helper bone (rigs like Unreal's can have hundreds of them).
-  const clickBonesRef = useRef<THREE.Bone[]>([])
 
   useEffect(() => {
     let cancelled = false
@@ -85,14 +84,28 @@ export function CustomModelView({ url, boneRefs }: CustomModelViewProps) {
 
         normalizeTransform(gltf.scene)
 
-        const defs: DynamicBoneDef[] = bones.map((b) => ({
-          id: boneId(b),
-          parent: b.parent && (b.parent as THREE.Bone).isBone ? boneId(b.parent as THREE.Bone) : null,
-          label: prettify(b.name),
-        }))
+        // Only the poseable subset is registered with the store, ref map, and per-frame
+        // sync — a dense game rig can have hundreds of twist/IK/finger-corrective bones
+        // that would otherwise bloat state and saved poses for no posing benefit. Rigs
+        // with no recognised primary bones (e.g. very small/simple rigs) fall back to
+        // treating every bone as poseable so nothing breaks.
+        const primary = bones.filter((b) => PRIMARY_BONE.test(b.name) && !HELPER_BONE.test(b.name))
+        const poseable = primary.length ? primary : bones
+
+        const defs: DynamicBoneDef[] = poseable.map((b) => {
+          let parent = b.parent
+          while (parent && !poseable.includes(parent as THREE.Bone)) {
+            parent = parent.parent
+          }
+          return {
+            id: boneId(b),
+            parent: parent && (parent as THREE.Bone).isBone ? boneId(parent as THREE.Bone) : null,
+            label: prettify(b.name),
+          }
+        })
 
         const initial: Record<string, { x: number; y: number; z: number }> = {}
-        bones.forEach((b) => {
+        poseable.forEach((b) => {
           initial[boneId(b)] = {
             x: THREE.MathUtils.radToDeg(b.rotation.x),
             y: THREE.MathUtils.radToDeg(b.rotation.y),
@@ -100,11 +113,9 @@ export function CustomModelView({ url, boneRefs }: CustomModelViewProps) {
           }
         })
 
-        bonesRef.current = bones
-        const poseable = bones.filter((b) => PRIMARY_BONE.test(b.name) && !HELPER_BONE.test(b.name))
-        clickBonesRef.current = poseable.length ? poseable : bones
+        bonesRef.current = poseable
         registerCustomBones(defs, initial)
-        bones.forEach((b) => {
+        poseable.forEach((b) => {
           refs.current[boneId(b)] = b
         })
         setScene(gltf.scene)
@@ -146,14 +157,13 @@ export function CustomModelView({ url, boneRefs }: CustomModelViewProps) {
   // procedural rig does. Instead, when the model is clicked we pick the bone whose current
   // world position is nearest the clicked point — clicking a forearm grabs the forearm, etc.
   function handleClick(e: ThreeEvent<MouseEvent>) {
-    const candidates = clickBonesRef.current.length ? clickBonesRef.current : bonesRef.current
-    if (candidates.length === 0) return
+    if (bonesRef.current.length === 0) return
     e.stopPropagation()
     const point = e.point
     const world = new THREE.Vector3()
     let nearest: THREE.Bone | null = null
     let nearestDist = Infinity
-    for (const bone of candidates) {
+    for (const bone of bonesRef.current) {
       bone.getWorldPosition(world)
       const d = world.distanceToSquared(point)
       if (d < nearestDist) {
