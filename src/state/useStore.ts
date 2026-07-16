@@ -26,12 +26,16 @@ export interface LightingState {
   showFloorGrid: boolean
 }
 
+export type Backdrop = 'studio' | 'beach' | 'outdoor' | 'seamless'
+
 interface PoseStore {
   mode: Mode
   rotations: PoseRotations
   selectedBone: string | null
   isDragging: boolean
   lighting: LightingState
+  backdrop: Backdrop
+  backdropColor: string
   savedPoses: Record<string, PoseRotations>
 
   customModelUrl: string | null
@@ -53,6 +57,8 @@ interface PoseStore {
   loadPose: (name: string) => void
   deletePose: (name: string) => void
   setLighting: (patch: Partial<LightingState>) => void
+  setBackdrop: (backdrop: Backdrop) => void
+  setBackdropColor: (color: string) => void
 
   loadCustomModel: (url: string, name: string, isDefault?: boolean) => void
   unloadCustomModel: () => void
@@ -87,6 +93,8 @@ export const useStore = create<PoseStore>()(
         rimEnabled: true,
         showFloorGrid: true,
       },
+      backdrop: 'studio',
+      backdropColor: '#e5e2dc',
       savedPoses: {},
 
       customModelUrl: null,
@@ -161,6 +169,8 @@ export const useStore = create<PoseStore>()(
       },
 
       setLighting: (patch) => set((state) => ({ lighting: { ...state.lighting, ...patch } })),
+      setBackdrop: (backdrop) => set({ backdrop }),
+      setBackdropColor: (color) => set({ backdropColor: color }),
 
       loadCustomModel: (url, name, isDefault = false) => {
         revokeIfBlob(get().customModelUrl)
@@ -217,7 +227,12 @@ export const useStore = create<PoseStore>()(
     }),
     {
       name: 'manga-pose-reference-store',
-      partialize: (state) => ({ savedPoses: state.savedPoses, lighting: state.lighting }),
+      partialize: (state) => ({
+        savedPoses: state.savedPoses,
+        lighting: state.lighting,
+        backdrop: state.backdrop,
+        backdropColor: state.backdropColor,
+      }),
     },
   ),
 )
