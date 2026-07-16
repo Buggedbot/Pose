@@ -4,10 +4,11 @@ import { Scene } from './scene/Scene'
 import { PresetBar } from './ui/PresetBar'
 import { LightingPanel } from './ui/LightingPanel'
 import { ModelPanel } from './ui/ModelPanel'
+import { EnvironmentPanel } from './ui/EnvironmentPanel'
 import { ViewportControls } from './ui/ViewportControls'
 import { useStore } from './state/useStore'
 
-type Tab = 'poses' | 'lighting' | 'model'
+type Tab = 'poses' | 'lighting' | 'environment' | 'model'
 
 // A bundled human figure, if one has been dropped into public/models/, becomes the default on load.
 // When it's absent the app simply stays on the built-in mannequin.
@@ -57,6 +58,12 @@ export default function App() {
             <button className={tab === 'lighting' ? 'tab tab-active' : 'tab'} onClick={() => setTab('lighting')}>
               Lighting
             </button>
+            <button
+              className={tab === 'environment' ? 'tab tab-active' : 'tab'}
+              onClick={() => setTab('environment')}
+            >
+              Environment
+            </button>
             <button className={tab === 'model' ? 'tab tab-active' : 'tab'} onClick={() => setTab('model')}>
               Model
             </button>
@@ -64,6 +71,7 @@ export default function App() {
           <div className="sidebar-content">
             {tab === 'poses' && <PresetBar />}
             {tab === 'lighting' && <LightingPanel />}
+            {tab === 'environment' && <EnvironmentPanel />}
             {tab === 'model' && <ModelPanel />}
           </div>
         </aside>

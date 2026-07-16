@@ -291,6 +291,48 @@ body {
   border-color: #ff8a3d;
 }
 
+.preset-button-active {
+  background: #ff8a3d;
+  border-color: #ff8a3d;
+  color: #1a1b1e;
+  font-weight: 600;
+}
+
+.swatch-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.swatch {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid #34363b;
+  cursor: pointer;
+  padding: 0;
+}
+
+.swatch:hover {
+  border-color: #7d7f85;
+}
+
+.swatch-active {
+  border-color: #ff8a3d;
+  box-shadow: 0 0 0 2px rgba(255, 138, 61, 0.35);
+}
+
+.swatch-custom {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid #34363b;
+  padding: 0;
+  cursor: pointer;
+  background: none;
+}
+
 .reset-all-button {
   width: 100%;
   background: none;

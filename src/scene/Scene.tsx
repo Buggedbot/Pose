@@ -1,10 +1,11 @@
 import { useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import { Canvas } from '@react-three/fiber'
-import { Grid, OrbitControls, TransformControls } from '@react-three/drei'
+import { OrbitControls, TransformControls } from '@react-three/drei'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import { Mannequin } from './Mannequin'
 import { CustomModelView } from './CustomModelView'
+import { Backdrop } from './Backdrops'
 import { useStore } from '../state/useStore'
 
 function LightingRig() {
@@ -33,32 +34,6 @@ function LightingRig() {
       {lighting.rimEnabled && (
         <directionalLight position={[-keyPos.x, 1.2, -keyPos.z]} intensity={0.4} color="#bcd8ff" />
       )}
-    </>
-  )
-}
-
-function Floor() {
-  const showFloorGrid = useStore((s) => s.lighting.showFloorGrid)
-  if (!showFloorGrid) return null
-  return (
-    <>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
-        <planeGeometry args={[10, 10]} />
-        <shadowMaterial opacity={0.25} />
-      </mesh>
-      <Grid
-        position={[0, 0.001, 0]}
-        args={[10, 10]}
-        cellSize={0.1}
-        cellThickness={0.5}
-        sectionSize={0.5}
-        sectionThickness={1}
-        cellColor="#3a3a3a"
-        sectionColor="#555"
-        fadeDistance={8}
-        fadeStrength={1}
-        infiniteGrid
-      />
     </>
   )
 }
@@ -126,9 +101,8 @@ export function Scene({ boneRefs }: SceneProps) {
       camera={{ position: [2.2, 1.55, 2.7], fov: 35 }}
       onPointerMissed={() => useStore.getState().selectBone(null)}
     >
-      <color attach="background" args={['#1d1f23']} />
       <LightingRig />
-      <Floor />
+      <Backdrop />
       {mode === 'custom' && customModelUrl ? (
         <CustomModelView key={customModelUrl} url={customModelUrl} boneRefs={boneRefs} />
       ) : (
