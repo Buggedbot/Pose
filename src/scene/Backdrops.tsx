@@ -181,6 +181,10 @@ function SeamlessBackdrop() {
 
 export function Backdrop() {
   const backdrop = useStore((s) => s.backdrop)
+  const isSketching = useStore((s) => s.isSketching)
+  // While capturing a sketch, SketchCapture takes over scene.background directly (a plain
+  // white sheet for the filter to work against) — render nothing here so it isn't overwritten.
+  if (isSketching) return null
   if (backdrop === 'beach') return <BeachBackdrop />
   if (backdrop === 'outdoor') return <OutdoorBackdrop />
   if (backdrop === 'seamless') return <SeamlessBackdrop />

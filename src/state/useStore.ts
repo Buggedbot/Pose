@@ -38,6 +38,14 @@ interface PoseStore {
   backdropColor: string
   savedPoses: Record<string, PoseRotations>
 
+  /** True while the scene is hiding the backdrop/gizmo for a clean sketch capture. */
+  isSketching: boolean
+  /** Set by the UI to ask the 3D layer to capture the current view; cleared once it's done. */
+  sketchRequested: boolean
+  sketchGenerating: boolean
+  sketchImage: string | null
+  sketchError: string | null
+
   customModelUrl: string | null
   customModelName: string | null
   customBoneTree: DynamicBoneDef[]
@@ -59,6 +67,14 @@ interface PoseStore {
   setLighting: (patch: Partial<LightingState>) => void
   setBackdrop: (backdrop: Backdrop) => void
   setBackdropColor: (color: string) => void
+
+  setSketching: (sketching: boolean) => void
+  requestSketch: () => void
+  consumeSketchRequest: () => void
+  setSketchImage: (image: string | null) => void
+  setSketchGenerating: (generating: boolean) => void
+  setSketchError: (message: string | null) => void
+  closeSketch: () => void
 
   loadCustomModel: (url: string, name: string, isDefault?: boolean) => void
   unloadCustomModel: () => void
@@ -96,6 +112,12 @@ export const useStore = create<PoseStore>()(
       backdrop: 'studio',
       backdropColor: '#e5e2dc',
       savedPoses: {},
+
+      isSketching: false,
+      sketchRequested: false,
+      sketchGenerating: false,
+      sketchImage: null,
+      sketchError: null,
 
       customModelUrl: null,
       customModelName: null,
@@ -171,6 +193,15 @@ export const useStore = create<PoseStore>()(
       setLighting: (patch) => set((state) => ({ lighting: { ...state.lighting, ...patch } })),
       setBackdrop: (backdrop) => set({ backdrop }),
       setBackdropColor: (color) => set({ backdropColor: color }),
+
+      setSketching: (sketching) => set({ isSketching: sketching }),
+      requestSketch: () =>
+        set({ sketchRequested: true, sketchGenerating: true, sketchImage: null, sketchError: null }),
+      consumeSketchRequest: () => set({ sketchRequested: false }),
+      setSketchImage: (image) => set({ sketchImage: image, sketchGenerating: false }),
+      setSketchGenerating: (generating) => set({ sketchGenerating: generating }),
+      setSketchError: (message) => set({ sketchError: message, sketchGenerating: false }),
+      closeSketch: () => set({ sketchImage: null, sketchError: null, sketchGenerating: false }),
 
       loadCustomModel: (url, name, isDefault = false) => {
         revokeIfBlob(get().customModelUrl)
