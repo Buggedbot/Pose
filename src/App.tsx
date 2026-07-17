@@ -6,6 +6,7 @@ import { LightingPanel } from './ui/LightingPanel'
 import { ModelPanel } from './ui/ModelPanel'
 import { EnvironmentPanel } from './ui/EnvironmentPanel'
 import { ViewportControls } from './ui/ViewportControls'
+import { SketchModal } from './ui/SketchModal'
 import { useStore } from './state/useStore'
 
 type Tab = 'poses' | 'lighting' | 'environment' | 'model'
@@ -76,6 +77,7 @@ export default function App() {
           </div>
         </aside>
       </main>
+      <SketchModal />
     </div>
   )
 }

@@ -6,6 +6,7 @@ import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import { Mannequin } from './Mannequin'
 import { CustomModelView } from './CustomModelView'
 import { Backdrop } from './Backdrops'
+import { SketchCapture } from './SketchCapture'
 import { useStore } from '../state/useStore'
 
 function LightingRig() {
@@ -98,6 +99,7 @@ export function Scene({ boneRefs }: SceneProps) {
   return (
     <Canvas
       shadows
+      gl={{ preserveDrawingBuffer: true }}
       camera={{ position: [2.2, 1.55, 2.7], fov: 35 }}
       onPointerMissed={() => useStore.getState().selectBone(null)}
     >
@@ -109,6 +111,7 @@ export function Scene({ boneRefs }: SceneProps) {
         <Mannequin boneRefs={boneRefs} />
       )}
       <PosingGizmo boneRefs={boneRefs} />
+      <SketchCapture />
     </Canvas>
   )
 }
